@@ -1,7 +1,12 @@
 import phaser from 'phaser';
+import Button from '../components/Button';
 const GROUND_KEY = 'ground';
 const DUDE_KEY = 'dude'
 const SYMBOL_NAME = 'potion';
+const COL = 5;
+const ROW = 3;
+const IMG_SIZE = 140;
+const IMG_NUM = 3;
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * Math.floor(max));
@@ -9,8 +14,15 @@ function getRandomInt(max) {
 export default class GameScene extends Phaser.Scene
 {
     constructor() {
+    
         super('game-scene');
+        this.state = {
+            isSpinning: false,
+            colNumSpin: [],
+            inter: null
+        }
     }
+    
     preload()
     {
         this.load.image('slotContainer', 'images/slotContainer.png')
@@ -19,8 +31,13 @@ export default class GameScene extends Phaser.Scene
         this.load.image('potion2', 'images/potion2.png')
         this.load.image('potion3', 'images/potion3.png')
         this.load.image('bomb', 'images/bomb.png')
-        this.load.image('bg', 'images/bg-default.jpg')
+        this.load.image('bg', 'images/bg-default.jpg');
+        this.load.image('bt-spin', 'images/button_spin.png');
+        this.load.image('bt-stop', 'images/button_stop.png');
 
+
+
+        this.btnPressed = false;
 
         // this.load.spritesheet(DUDE_KEY,
         //     'images/dude.png',
@@ -32,118 +49,179 @@ export default class GameScene extends Phaser.Scene
     create(){
         this.add.image(100, 100, 'bg')
 
-        this.add.image(380, 250, 'slotContainer')
+        this.add.image(380, 250, 'slotContainer');
+        this.btnStop =this.add.sprite(600,550,'bt-stop').setInteractive().setVisible(false);
+         const feature1={
+            src: 'bt-spin',
+            onClick: this.onSpinHandler,
+            visible: true,
+            disable: false,
+            x: 600,
+            y: 550
+        }
+        const feature2={
+            src: 'bt-stop',
+            onClick: this.onStopHandler,
+            visible: false,
+            disable: false,
+            x: 600,
+            y: 550
+        }
+
+        this.btnStop = Button(feature2, this.add);
+        this.btnSpin = Button(feature1,this.add);
+
+
+
         this.createRandomRow();
 
 
        // this.createPlatforms()
     }
+
+     create_btn  (feature) {
+    //     // const feature={
+    //     //     src: src,
+    //     //     onClick: onClick,
+    //     //     visible: true,
+    //     //     disable: false,
+    //     //     x: x,
+    //     //     y: y
+    //     // }
+    //     let btn =this.add.sprite(feature.x,feature.y,feature.src).setInteractive();
+    //     btn.on('pointerdown',feature.onClick);
+    //     btn.on('pointerover', function (event) {
+    
+    //         this.setTint(0xff0000);
+    //         this.setScale(1.1);
+    
+    //     });
+    
+    
+    // btn.on('pointerout', function (event) {
+    
+    //     this.clearTint();
+    //     this.setScale(1);
+    
+    
+    //     });
+    
+    
+    //     return btn; 
+    
+    }
     createRandomRow() {
         const mat = [];
-        // for(let row = 1; row<4 ;row++){
-        //     const col = [];
-        //     for(let i =0; i<5 ; i++){
-        //         // this.add.image(125+i*140,row*140,SYMBOL_NAME+(getRandomInt(3)+1));
-        //         col.push(getRandomInt(3)+1);
-        //     }
-        // }
-
-       //  for(let row = 0; row<3 ;row++){
-       //      const col = [];
-       //      for(let i =0; i<5; i++){
-       //          // this.add.image(125+i*140,row*140,SYMBOL_NAME+(getRandomInt(3)+1));
-       //          col.push(getRandomInt(3)+1);
-       //      }
-       //      mat.push(col);
-       //  }
-       // // console.log(mat);
-
-        for(let row = 0; row<3 ;row++){
+        const spinningCol =[];
+       
+        //creating random starting map
+        for(let row = 0; row<ROW ;row++){
                let arr = [];
-            for(let i =0; i<5; i++){
-                // this.add.image(125+i*140,row*140,SYMBOL_NAME+(getRandomInt(3)+1));
-              let temp=  this.add.image(125+i*140,140+row*140,SYMBOL_NAME+(getRandomInt(3)+1) );
-            //  console.log(temp);
+            for(let i =0; i<COL; i++){
+              let temp=  this.add.image(125+i*IMG_SIZE,140+row*IMG_SIZE,SYMBOL_NAME+(getRandomInt(IMG_NUM)+1) );
                 arr.push(temp);
+                
             }
             mat.push(arr);
-            //console.log(arr);
         }
-        console.log(mat[0][0]);
-        console.log(this);
+
+        //ccreating is spinning for each col
+        for(let i =0; i<COL; i++){
+            spinningCol.push(false);
+        }
+        this.state.colNumSpin= spinningCol;
         this.itemsMat = mat;
-        // for(let row in mat){
-        //     for(let i in mat[row]){
-        //         console.log(mat[row][i]);
-        //
-        //     }
-        // }
-        setTimeout(()=> {
-            this.shiftDown();
-        },3000);
+       
        
 
     }
     shiftDown = () => {
-        for(let row in this.itemsMat ){
-            for(let col in this.itemsMat[row]){
-                if(Number(row) <2){
-                    this.itemsMat[row][col].y+=140
-                    if(Number(row) == 0){
-                        this.itemsMat[row][col]=this.add.image(125+Number(col)*140,140,SYMBOL_NAME+(getRandomInt(3)+1) );
+        const mat = [];
+        if(this.state.isSpinning){
+    
+            for(let i =0; i<COL ; i++){
+                if(this.state.colNumSpin[i]){
+                    this.itemsMat[2][i].destroy();
+                    this.itemsMat[2][i] = this.itemsMat[1][i];
+                    this.itemsMat[2][i].y+=  IMG_SIZE;
+                    this.itemsMat[1][i] = this.itemsMat[0][i];
+                    this.itemsMat[1][i].y+=  IMG_SIZE;
+                    this.itemsMat[0][i] = this.add.image(125+Number(i)*IMG_SIZE,IMG_SIZE,SYMBOL_NAME+(getRandomInt(IMG_NUM)+1) );
 
-                    }
-                } else {
-                    this.itemsMat[row][col].destroy();
+
                 }
             }
+          
+            //this.itemsMat = mat;
         }
+   
     }
 
-    createPlatforms()
-    {
-        const platforms = this.physics.add.staticGroup()
-
-        // platforms.create(400, 568, GROUND_KEY).setScale(2).refreshBody()
-        //
-        // platforms.create(600, 400, GROUND_KEY)
-        // platforms.create(50, 250, GROUND_KEY)
-        // platforms.create(750, 220, GROUND_KEY)
-        this.createPlayer();
-    }
-
-    createPlayer()
-    {
-        this.player = this.physics.add.sprite(100, 450, DUDE_KEY)
-        this.player.setBounce(0.2)
-        this.player.setCollideWorldBounds(true)
-
-        this.anims.create({
-            key: 'left',
-            frames: this.anims.generateFrameNumbers(DUDE_KEY, { start: 0, end: 3 }),
-            frameRate: 10,
-            repeat: -1
-        })
-
-        this.anims.create({
-            key: 'turn',
-            frames: [ { key: DUDE_KEY, frame: 4 } ],
-            frameRate: 20
-        })
-
-        this.anims.create({
-            key: 'right',
-            frames: this.anims.generateFrameNumbers(DUDE_KEY, { start: 5, end: 8 }),
-            frameRate: 10,
-            repeat: -1
-        })
-    }
 
     update() {
-      //
-      //   while (true){
-      //       setTimeout(console.log(this.itemsMat),1000);
-      //   }
+      
+    }
+
+
+    startSpin = () => {
+        this.state.isSpinning = true;
+        for(let i=0 ;i <COL ; i++ )
+        {
+            this.state.colNumSpin[i]=true;
+            setTimeout(()=>this.stopCol(i)
+            , 2000 +i*2000);
+            console.log(2000 + i*2000);
+        } 
+        let con =false;
+       this.state.inter= setInterval(() => {
+            if(this.state.isSpinning){
+                 con =false;
+                for(let i=0 ;i <COL ; i++ ){
+                    con = con ||this.state.colNumSpin[i];
+                }
+                if(con){
+                    this.shiftDown(); 
+                   console.log( this.state.colNumSpin);
+                } else {
+                    this.onStopHandler();
+                    
+                }
+               // this.state.isSpinning = con;
+    
+            }
+        }, 100);
+    
+       
+      }
+
+      stopCol=(index) => {
+          this.state.colNumSpin[index] =false;
+      }
+
+    onSpinHandler= () => {
+        this.btnSpin.disableInteractive().setAlpha(0.5);
+        this.state.isSpinning=true;
+        this.startSpin();
+        setTimeout(()=>{
+            this.btnSpin.setVisible(false);
+            this.btnStop.setVisible(true);
+        },1000);
+
+    }
+
+    onStopHandler = () => {
+        this.state.isSpinning= false;
+        this.btnStop.disableInteractive().setVisible(false);
+        this.btnSpin.setInteractive().setAlpha(1).setVisible(true);
+        if(this.state.inter){
+            clearInterval(this.state.inter);
+        }
+        for(let i=0 ;i <COL ; i++ )
+        {
+            this.state.colNumSpin[i]=false;
+        } 
+        console.log('stop pressed');
+
     }
 
 
